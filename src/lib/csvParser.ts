@@ -85,7 +85,7 @@ export function parseParticipantsFromCSV(): Participant[] {
     for (const participant of participants) {
       const normalizedName = participant.name.toLowerCase().trim();
       const count = nameCount.get(normalizedName) || 0;
-      
+
       if (count > 1) {
         duplicateNames.add(normalizedName);
         console.log('Excluding duplicate participant:', participant.name);
