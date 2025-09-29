@@ -13,7 +13,7 @@ interface RotatingListProps {
 // Dynamic import with no SSR to ensure client-only rendering
 const RotatingListClient = dynamic(
   () => import('./RotatingList'),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="bg-white rounded-lg shadow-lg p-8 text-center h-full flex items-center justify-center">

@@ -151,7 +151,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   useEffect(() => {
     // Only run on client-side after mounting
     if (!isMounted) return;
-    
+
     // If not spinning or insufficient participants, stop everything
     if (!isSpinning || participantsRef.current.length < 2) {
       spinningDataRef.current.isActive = false;
