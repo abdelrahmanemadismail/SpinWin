@@ -71,9 +71,22 @@ export function parseParticipantsFromCSV(): Participant[] {
     console.log('First few participants:', participants.slice(0, 5).map(p => p.name));
     console.log('Total lines in CSV:', lines.length);
 
+    // Remove duplicates based on name (case-insensitive)
+    const uniqueParticipants: Participant[] = [];
+    const seenNames = new Set<string>();
 
-    // Return all participants without removing duplicates
-    return participants;
+    for (const participant of participants) {
+      const normalizedName = participant.name.toLowerCase().trim();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        uniqueParticipants.push(participant);
+      } else {
+        console.log('Duplicate participant removed:', participant.name);
+      }
+    }
+
+    console.log('Unique participants after duplicate removal:', uniqueParticipants.length);
+    return uniqueParticipants;
   } catch (error) {
     console.error('Error parsing CSV:', error);
     return [];
