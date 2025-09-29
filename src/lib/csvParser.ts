@@ -71,21 +71,34 @@ export function parseParticipantsFromCSV(): Participant[] {
     console.log('First few participants:', participants.slice(0, 5).map(p => p.name));
     console.log('Total lines in CSV:', lines.length);
 
-    // Remove duplicates based on name (case-insensitive)
+    // Count occurrences of each name (case-insensitive)
+    const nameCount = new Map<string, number>();
+    for (const participant of participants) {
+      const normalizedName = participant.name.toLowerCase().trim();
+      nameCount.set(normalizedName, (nameCount.get(normalizedName) || 0) + 1);
+    }
+
+    // Filter out participants whose names appear more than once
     const uniqueParticipants: Participant[] = [];
-    const seenNames = new Set<string>();
+    const duplicateNames = new Set<string>();
 
     for (const participant of participants) {
       const normalizedName = participant.name.toLowerCase().trim();
-      if (!seenNames.has(normalizedName)) {
-        seenNames.add(normalizedName);
-        uniqueParticipants.push(participant);
+      const count = nameCount.get(normalizedName) || 0;
+      
+      if (count > 1) {
+        duplicateNames.add(normalizedName);
+        console.log('Excluding duplicate participant:', participant.name);
       } else {
-        console.log('Duplicate participant removed:', participant.name);
+        uniqueParticipants.push(participant);
       }
     }
 
-    console.log('Unique participants after duplicate removal:', uniqueParticipants.length);
+    if (duplicateNames.size > 0) {
+      console.log('Names with duplicates (all entries excluded):', Array.from(duplicateNames));
+    }
+
+    console.log('Participants after excluding all duplicates:', uniqueParticipants.length);
     return uniqueParticipants;
   } catch (error) {
     console.error('Error parsing CSV:', error);
