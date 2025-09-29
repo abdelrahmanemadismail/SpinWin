@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/lib/csvParser';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface RotatingListProps {
   participants: Participant[];
@@ -20,6 +20,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   const participantsRef = useRef(participants);
   const isSpinningRef = useRef(isSpinning);
   const winnerRef = useRef(winner);
+  const onSpinCompleteRef = useRef(onSpinComplete);
   const spinningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
@@ -40,6 +41,10 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   useEffect(() => {
     winnerRef.current = winner;
   }, [winner]);
+
+  useEffect(() => {
+    onSpinCompleteRef.current = onSpinComplete;
+  }, [onSpinComplete]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -74,9 +79,77 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     setVisibleParticipants(getVisibleParticipants(currentIndex));
   }, [currentIndex, participants, centerIndex, visibleCount]);
 
+  // Create a stable spinning function using useRef
+  const spinningDataRef = useRef({
+    speed: 100,
+    minSpinTime: 8000,
+    maxSpeed: 800,
+    startTime: 0,
+    lastUpdate: 0,
+    isActive: false
+  });
+
+  const spin = useCallback(() => {
+    if (!spinningDataRef.current.isActive) return;
+
+    const now = Date.now();
+    const elapsedTime = now - spinningDataRef.current.startTime;
+
+    // Dynamic speed calculation for exciting spinning effect
+    let currentSpeed = spinningDataRef.current.speed;
+
+    // Super fast initial period (first 2 seconds)
+    if (elapsedTime < 2000) {
+      currentSpeed = 50; // Very fast initial spinning
+    }
+    // Fast period (2-4 seconds)
+    else if (elapsedTime < 4000) {
+      currentSpeed = 80;
+    }
+
+    // Use consistent timing for iOS Safari
+    if (now - spinningDataRef.current.lastUpdate >= currentSpeed) {
+      // Always rotate the list while spinning
+      setCurrentIndex(prevIndex => (prevIndex + 1) % participantsRef.current.length);
+      spinningDataRef.current.lastUpdate = now;
+
+      // Check if we should stop spinning
+      if (winnerRef.current && elapsedTime >= spinningDataRef.current.minSpinTime) {
+        // Find winner index and position the list there
+        const winnerIndex = participantsRef.current.findIndex(p => p.id === winnerRef.current?.id);
+        if (winnerIndex !== -1) {
+          setCurrentIndex(winnerIndex);
+          setIsComplete(true);
+          spinningDataRef.current.isActive = false;
+
+          // Notify completion after a short delay
+          setTimeout(() => {
+            onSpinCompleteRef.current?.();
+          }, 1000);
+
+          return; // Stop spinning
+        }
+      }
+
+      // Gradual slowdown logic for more dramatic effect
+      if (winnerRef.current && elapsedTime >= spinningDataRef.current.minSpinTime - 3000) {
+        // Start slowing down 3 seconds before stopping
+        const slowdownProgress = (elapsedTime - (spinningDataRef.current.minSpinTime - 3000)) / 3000;
+        const slowdownFactor = Math.pow(slowdownProgress, 2); // Quadratic slowdown for smooth effect
+        spinningDataRef.current.speed = Math.min(100 + (spinningDataRef.current.maxSpeed - 100) * slowdownFactor, spinningDataRef.current.maxSpeed);
+      }
+    }
+
+    // Continue spinning
+    if (spinningDataRef.current.isActive) {
+      animationFrameRef.current = requestAnimationFrame(spin);
+    }
+  }, []);
+
   useEffect(() => {
     // If not spinning or insufficient participants, stop everything
-    if (!isSpinning || participants.length < 2) {
+    if (!isSpinning || participantsRef.current.length < 2) {
+      spinningDataRef.current.isActive = false;
       setIsComplete(false);
       if (spinningTimeoutRef.current) {
         clearTimeout(spinningTimeoutRef.current);
@@ -89,79 +162,32 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
       return;
     }
 
-    // Clear any existing timeout and animation frame
-    if (spinningTimeoutRef.current) {
-      clearTimeout(spinningTimeoutRef.current);
-    }
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    setIsComplete(false);
-
-    let speed = 100; // Much faster initial speed (lower = faster)
-    const minSpinTime = 8000; // 8 seconds minimum (longer time)
-    const maxSpeed = 800; // Maximum speed for slowdown
-    const startTime = Date.now();
-    let lastUpdate = Date.now();
-
-    const spin = () => {
-      const now = Date.now();
-      const elapsedTime = now - startTime;
-
-      // Dynamic speed calculation for exciting spinning effect
-      let currentSpeed = speed;
-
-      // Super fast initial period (first 2 seconds)
-      if (elapsedTime < 2000) {
-        currentSpeed = 50; // Very fast initial spinning
-      }
-      // Fast period (2-4 seconds)
-      else if (elapsedTime < 4000) {
-        currentSpeed = 80;
+    // Only start spinning if not already active
+    if (!spinningDataRef.current.isActive) {
+      // Clear any existing animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
 
-      // Use consistent timing for iOS Safari
-      if (now - lastUpdate >= currentSpeed) {
-        // Always rotate the list while spinning
-        setCurrentIndex(prevIndex => (prevIndex + 1) % participants.length);
-        lastUpdate = now;
+      setIsComplete(false);
 
-        // Check if we should stop spinning
-        if (winner && elapsedTime >= minSpinTime) {
-          // Find winner index and position the list there
-          const winnerIndex = participants.findIndex(p => p.id === winner.id);
-          if (winnerIndex !== -1) {
-            setCurrentIndex(winnerIndex);
-            setIsComplete(true);
+      // Reset spinning data
+      spinningDataRef.current = {
+        speed: 100,
+        minSpinTime: 8000,
+        maxSpeed: 800,
+        startTime: Date.now(),
+        lastUpdate: Date.now(),
+        isActive: true
+      };
 
-            // Notify completion after a short delay
-            setTimeout(() => {
-              onSpinComplete?.();
-            }, 1000);
-
-            return; // Stop spinning
-          }
-        }
-
-        // Gradual slowdown logic for more dramatic effect
-        if (winner && elapsedTime >= minSpinTime - 3000) {
-          // Start slowing down 3 seconds before stopping
-          const slowdownProgress = (elapsedTime - (minSpinTime - 3000)) / 3000;
-          const slowdownFactor = Math.pow(slowdownProgress, 2); // Quadratic slowdown for smooth effect
-          speed = Math.min(100 + (maxSpeed - 100) * slowdownFactor, maxSpeed);
-        }
-      }
-
-      // Use requestAnimationFrame for smoother animation on iOS Safari
+      // Start the spinning animation
       animationFrameRef.current = requestAnimationFrame(spin);
-    };
-
-    // Start the spinning animation
-    animationFrameRef.current = requestAnimationFrame(spin);
+    }
 
     // Cleanup
     return () => {
+      spinningDataRef.current.isActive = false;
       if (spinningTimeoutRef.current) {
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
@@ -171,7 +197,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
         animationFrameRef.current = null;
       }
     };
-  }, [isSpinning, participants, winner, onSpinComplete]);
+  }, [isSpinning, spin]);
 
   if (participants.length === 0) {
     return (
