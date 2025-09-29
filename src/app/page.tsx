@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import ParticipantList from '@/components/ParticipantList';
-import RotatingListWrapper from '@/components/RotatingListWrapper';
+import RotatingList from '@/components/RotatingList';
 import ResultModal from '@/components/ResultModal';
 import Controls from '@/components/Controls';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -159,7 +159,7 @@ export default function RafflePage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col" dir="rtl">
+    <div className="min-h-full flex flex-col" dir="rtl" suppressHydrationWarning={true}>
       {/* Header */}
       <header className="bg-gradient-to-r from-green-600 via-green-700 to-green-600 shadow-xl border-b-2 sm:border-b-4 border-green-800">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
@@ -235,7 +235,7 @@ export default function RafflePage() {
             className="lg:col-span-3 flex flex-col items-center space-y-2 sm:space-y-4 lg:space-y-6 min-h-[400px] sm:min-h-[500px] lg:min-h-[600px] order-1 lg:order-2"
           >
             <div className="w-full flex-1 min-h-0">
-              <RotatingListWrapper
+              <RotatingList
                 participants={participants}
                 isSpinning={isDrawing}
                 winner={winner}

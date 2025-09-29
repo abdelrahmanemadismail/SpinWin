@@ -41,6 +41,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className="h-full ios-height-fix">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full`}
+        suppressHydrationWarning={true}
       >
         {children}
       </body>

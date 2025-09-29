@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/lib/csvParser';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface RotatingListProps {
   participants: Participant[];
@@ -17,14 +17,14 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   const [isComplete, setIsComplete] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+
+
   // Use refs to avoid stale closures
   const participantsRef = useRef(participants);
   const isSpinningRef = useRef(isSpinning);
   const winnerRef = useRef(winner);
   const onSpinCompleteRef = useRef(onSpinComplete);
-  const spinningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const isMountedRef = useRef(true);
+
 
   // Show 9 participants at a time (4 above, 1 center, 4 below) - increased from 7
   const visibleCount = 9;
@@ -47,22 +47,12 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     onSpinCompleteRef.current = onSpinComplete;
   }, [onSpinComplete]);
 
-  // Client-side mounting check
+  // Mount detection
   useEffect(() => {
     setIsMounted(true);
-    return () => {
-      isMountedRef.current = false;
-      if (spinningTimeoutRef.current) {
-        clearTimeout(spinningTimeoutRef.current);
-        spinningTimeoutRef.current = null;
-      }
-      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
   }, []);
 
+  // Calculate visible participants
   useEffect(() => {
     if (participants.length === 0) {
       setVisibleParticipants([]);
@@ -81,130 +71,54 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     setVisibleParticipants(getVisibleParticipants(currentIndex));
   }, [currentIndex, participants, centerIndex, visibleCount]);
 
-  // Create a stable spinning function using useRef
-  const spinningDataRef = useRef({
-    speed: 100,
-    minSpinTime: 8000,
-    maxSpeed: 800,
-    startTime: 0,
-    lastUpdate: 0,
-    isActive: false
-  });
-
-  const spin = useCallback(() => {
-    if (!spinningDataRef.current.isActive || !isMounted || typeof window === 'undefined') return;
-
-    const now = Date.now();
-    const elapsedTime = now - spinningDataRef.current.startTime;
-
-    // Dynamic speed calculation for exciting spinning effect
-    let currentSpeed = spinningDataRef.current.speed;
-
-    // Super fast initial period (first 2 seconds)
-    if (elapsedTime < 2000) {
-      currentSpeed = 50; // Very fast initial spinning
-    }
-    // Fast period (2-4 seconds)
-    else if (elapsedTime < 4000) {
-      currentSpeed = 80;
-    }
-
-    // Use consistent timing for iOS Safari
-    if (now - spinningDataRef.current.lastUpdate >= currentSpeed) {
-      // Always rotate the list while spinning
-      setCurrentIndex(prevIndex => (prevIndex + 1) % participantsRef.current.length);
-      spinningDataRef.current.lastUpdate = now;
-
-      // Check if we should stop spinning
-      if (winnerRef.current && elapsedTime >= spinningDataRef.current.minSpinTime) {
-        // Find winner index and position the list there
-        const winnerIndex = participantsRef.current.findIndex(p => p.id === winnerRef.current?.id);
-        if (winnerIndex !== -1) {
-          setCurrentIndex(winnerIndex);
-          setIsComplete(true);
-          spinningDataRef.current.isActive = false;
-
-          // Notify completion after a short delay
-          setTimeout(() => {
-            onSpinCompleteRef.current?.();
-          }, 1000);
-
-          return; // Stop spinning
-        }
-      }
-
-      // Gradual slowdown logic for more dramatic effect
-      if (winnerRef.current && elapsedTime >= spinningDataRef.current.minSpinTime - 3000) {
-        // Start slowing down 3 seconds before stopping
-        const slowdownProgress = (elapsedTime - (spinningDataRef.current.minSpinTime - 3000)) / 3000;
-        const slowdownFactor = Math.pow(slowdownProgress, 2); // Quadratic slowdown for smooth effect
-        spinningDataRef.current.speed = Math.min(100 + (spinningDataRef.current.maxSpeed - 100) * slowdownFactor, spinningDataRef.current.maxSpeed);
-      }
-    }
-
-    // Continue spinning
-    if (spinningDataRef.current.isActive && typeof requestAnimationFrame !== 'undefined') {
-      animationFrameRef.current = requestAnimationFrame(spin);
-    }
-  }, [isMounted]);
-
+  // Simple spinning logic using setTimeout
   useEffect(() => {
-    // Only run on client-side after mounting
-    if (!isMounted) return;
-
-    // If not spinning or insufficient participants, stop everything
-    if (!isSpinning || participantsRef.current.length < 2) {
-      spinningDataRef.current.isActive = false;
+    if (!isMounted || !isSpinning || participants.length < 2) {
       setIsComplete(false);
-      if (spinningTimeoutRef.current) {
-        clearTimeout(spinningTimeoutRef.current);
-        spinningTimeoutRef.current = null;
-      }
-      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
       return;
     }
 
-    // Only start spinning if not already active
-    if (!spinningDataRef.current.isActive) {
-      // Clear any existing animation frame
-      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(animationFrameRef.current);
+    const startTime = Date.now();
+    let currentSpeed = 50; // Start fast
+    const minSpinTime = 8000; // 8 seconds
+    let intervalId: NodeJS.Timeout;
+
+    const spinStep = () => {
+      const elapsedTime = Date.now() - startTime;
+
+      // Update current index
+      setCurrentIndex(prev => (prev + 1) % participants.length);
+
+      // Check if we should stop
+      if (winner && elapsedTime >= minSpinTime) {
+        const winnerIndex = participants.findIndex(p => p.id === winner.id);
+        if (winnerIndex !== -1) {
+          setCurrentIndex(winnerIndex);
+          setIsComplete(true);
+          setTimeout(() => onSpinComplete?.(), 1000);
+          return;
+        }
       }
 
-      setIsComplete(false);
-
-      // Reset spinning data
-      spinningDataRef.current = {
-        speed: 100,
-        minSpinTime: 8000,
-        maxSpeed: 800,
-        startTime: Date.now(),
-        lastUpdate: Date.now(),
-        isActive: true
-      };
-
-      // Start the spinning animation
-      if (typeof requestAnimationFrame !== 'undefined') {
-        animationFrameRef.current = requestAnimationFrame(spin);
+      // Adjust speed for slowdown effect
+      if (winner && elapsedTime >= minSpinTime - 3000) {
+        const slowdownProgress = (elapsedTime - (minSpinTime - 3000)) / 3000;
+        currentSpeed = 50 + (500 * slowdownProgress); // Slow down gradually
       }
-    }
 
-    // Cleanup
+      // Continue spinning
+      intervalId = setTimeout(spinStep, currentSpeed);
+    };
+
+    // Start spinning
+    intervalId = setTimeout(spinStep, currentSpeed);
+
     return () => {
-      spinningDataRef.current.isActive = false;
-      if (spinningTimeoutRef.current) {
-        clearTimeout(spinningTimeoutRef.current);
-        spinningTimeoutRef.current = null;
-      }
-      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
+      if (intervalId) {
+        clearTimeout(intervalId);
       }
     };
-  }, [isSpinning, spin, isMounted]);
+  }, [isSpinning, winner, participants, onSpinComplete, isMounted]);
 
   if (participants.length === 0) {
     return (
