@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import ParticipantList from '@/components/ParticipantList';
 import RotatingList from '@/components/RotatingList';
 import ResultModal from '@/components/ResultModal';
 import Controls from '@/components/Controls';
-import Statistics from '@/components/Statistics';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Participant } from '@/lib/csvParser';
 
@@ -168,11 +168,28 @@ export default function RafflePage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
+            {/* Logo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-3 sm:mb-4 lg:mb-6"
+            >
+              <Image
+                src="/logo.png"
+                alt="شعار الشركة"
+                width={120}
+                height={120}
+                className="mx-auto drop-shadow-lg hover:scale-105 transition-transform duration-300"
+                priority
+              />
+            </motion.div>
+
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-1 sm:mb-2 drop-shadow-lg">
               🎯 السحب العشوائي
             </h1>
             <p className="text-green-100 text-xs sm:text-sm md:text-base lg:text-lg opacity-90 px-2">
-              صفحة السحب للمناسبات والفعاليات - ({participants.length} مشارك)
+              سحب جوائز فعاليات اليوم الوطني 95 عزنا بطبعنا ({participants.length} مشارك)
             </p>
           </motion.div>
         </div>
@@ -290,6 +307,22 @@ export default function RafflePage() {
       <footer className="bg-gradient-to-r from-green-600 via-green-700 to-green-600 border-t-2 sm:border-t-4 border-green-800 mt-auto shadow-lg sm:shadow-xl lg:shadow-2xl flex-shrink-0">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 lg:py-4">
           <div className="text-center text-green-100">
+            {/* Footer Logo */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mb-2 sm:mb-3"
+            >
+              <Image
+                src="/logo.png"
+                alt="شعار الشركة"
+                width={60}
+                height={60}
+                className="mx-auto opacity-80 hover:opacity-100 transition-opacity duration-300"
+              />
+            </motion.div>
+
             <p className="mb-1 sm:mb-2 text-xs sm:text-sm lg:text-base opacity-90 px-2">
               🇸🇦 هذه الصفحة مخصصة لعرض السحب العشوائي بشكل احترافي وشفاف أمام الحضور
             </p>

@@ -21,6 +21,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   const isSpinningRef = useRef(isSpinning);
   const winnerRef = useRef(winner);
   const spinningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
   // Show 9 participants at a time (4 above, 1 center, 4 below) - increased from 7
@@ -47,6 +48,10 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
       if (spinningTimeoutRef.current) {
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, []);
@@ -77,59 +82,93 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
       }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       return;
     }
 
-    // Clear any existing timeout
+    // Clear any existing timeout and animation frame
     if (spinningTimeoutRef.current) {
       clearTimeout(spinningTimeoutRef.current);
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
     }
 
     setIsComplete(false);
 
-    let speed = 300; // Slower initial speed
-    const minSpinTime = 5000; // 5 seconds minimum
+    let speed = 100; // Much faster initial speed (lower = faster)
+    const minSpinTime = 8000; // 8 seconds minimum (longer time)
+    const maxSpeed = 800; // Maximum speed for slowdown
     const startTime = Date.now();
+    let lastUpdate = Date.now();
 
     const spin = () => {
-      const elapsedTime = Date.now() - startTime;
+      const now = Date.now();
+      const elapsedTime = now - startTime;
 
-      // Always rotate the list while spinning
-      setCurrentIndex(prevIndex => (prevIndex + 1) % participants.length);
+      // Dynamic speed calculation for exciting spinning effect
+      let currentSpeed = speed;
 
-      // Check if we should stop spinning
-      if (winner && elapsedTime >= minSpinTime) {
-        // Find winner index and position the list there
-        const winnerIndex = participants.findIndex(p => p.id === winner.id);
-        if (winnerIndex !== -1) {
-          setCurrentIndex(winnerIndex);
-          setIsComplete(true);
+      // Super fast initial period (first 2 seconds)
+      if (elapsedTime < 2000) {
+        currentSpeed = 50; // Very fast initial spinning
+      }
+      // Fast period (2-4 seconds)
+      else if (elapsedTime < 4000) {
+        currentSpeed = 80;
+      }
 
-          // Notify completion after a short delay
-          setTimeout(() => {
-            onSpinComplete?.();
-          }, 1000);
+      // Use consistent timing for iOS Safari
+      if (now - lastUpdate >= currentSpeed) {
+        // Always rotate the list while spinning
+        setCurrentIndex(prevIndex => (prevIndex + 1) % participants.length);
+        lastUpdate = now;
 
-          return; // Stop spinning
+        // Check if we should stop spinning
+        if (winner && elapsedTime >= minSpinTime) {
+          // Find winner index and position the list there
+          const winnerIndex = participants.findIndex(p => p.id === winner.id);
+          if (winnerIndex !== -1) {
+            setCurrentIndex(winnerIndex);
+            setIsComplete(true);
+
+            // Notify completion after a short delay
+            setTimeout(() => {
+              onSpinComplete?.();
+            }, 1000);
+
+            return; // Stop spinning
+          }
+        }
+
+        // Gradual slowdown logic for more dramatic effect
+        if (winner && elapsedTime >= minSpinTime - 3000) {
+          // Start slowing down 3 seconds before stopping
+          const slowdownProgress = (elapsedTime - (minSpinTime - 3000)) / 3000;
+          const slowdownFactor = Math.pow(slowdownProgress, 2); // Quadratic slowdown for smooth effect
+          speed = Math.min(100 + (maxSpeed - 100) * slowdownFactor, maxSpeed);
         }
       }
 
-      // Continue spinning if conditions not met
-      if (winner && elapsedTime >= minSpinTime - 1500) {
-        speed = Math.min(speed + 50, 600); // Slow down more gradually
-      }
-
-      spinningTimeoutRef.current = setTimeout(spin, speed);
+      // Use requestAnimationFrame for smoother animation on iOS Safari
+      animationFrameRef.current = requestAnimationFrame(spin);
     };
 
     // Start the spinning animation
-    spin();
+    animationFrameRef.current = requestAnimationFrame(spin);
 
     // Cleanup
     return () => {
       if (spinningTimeoutRef.current) {
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, [isSpinning, participants, winner, onSpinComplete]);
@@ -146,11 +185,20 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   }
 
   return (
-    <div className="bg-gradient-to-br from-white via-green-50/30 to-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border border-green-200 sm:border-2 sm:border-green-300 p-2 sm:p-4 lg:p-6 h-full flex flex-col backdrop-blur-sm">
+    <div className="bg-gradient-to-br from-white via-green-50/30 to-white rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border border-green-200 sm:border-2 sm:border-green-300 p-2 sm:p-4 lg:p-6 h-full flex flex-col"
+         style={{
+           // Remove backdrop-blur for better iOS Safari compatibility
+           WebkitTransform: 'translate3d(0, 0, 0)',
+           transform: 'translate3d(0, 0, 0)'
+         }}>
       <motion.div
         className="text-center mb-2 sm:mb-4 lg:mb-6"
         animate={isSpinning ? { scale: [1, 1.02, 1] } : {}}
-        transition={{ duration: 1, repeat: isSpinning ? Infinity : 0 }}
+        transition={{ duration: 1, repeat: isSpinning ? Infinity : 0, ease: "easeInOut" }}
+        style={{
+          WebkitTransform: 'translate3d(0, 0, 0)',
+          transform: 'translate3d(0, 0, 0)'
+        }}
       >
         <h3 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-green-800 mb-1 sm:mb-2 lg:mb-3 drop-shadow-sm">
           {isSpinning ? '🎲 جاري السحب...' : isComplete ? '🎉 انتهى السحب!' : '🎯 المشاركين في السحب'}
@@ -164,8 +212,12 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
 
       <div className="relative flex-1 overflow-hidden rounded-2xl border-2 border-green-300 bg-gradient-to-b from-green-50/40 to-white shadow-inner">
         {/* Rotating list - scrolling from bottom to top */}
-        <div className="absolute inset-0 flex flex-col justify-start p-4 overflow-hidden">
-          <AnimatePresence mode="wait">
+        <div className="absolute inset-0 flex flex-col justify-start p-4 overflow-hidden will-change-transform"
+             style={{
+               WebkitTransform: 'translate3d(0, 0, 0)',
+               transform: 'translate3d(0, 0, 0)'
+             }}>
+          <AnimatePresence mode="wait" initial={false}>
             {visibleParticipants.map((participant, index) => {
               const isCenterItem = index === centerIndex;
               const isWinnerItem = winner && participant.id === winner.id && isComplete;
@@ -181,26 +233,33 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
                   }}
                   exit={{ opacity: 0.7, y: -100, scale: 0.9 }}
                   transition={{
-                    duration: isSpinning ? 0.25 : 0.5,
-                    ease: isSpinning ? "easeInOut" : "easeOut",
+                    duration: isSpinning ? 0.12 : 0.5, // Much faster during spinning
+                    ease: isSpinning ? "linear" : "easeOut", // Linear for consistent fast spinning
                     opacity: {
-                      duration: isSpinning ? 0.15 : 0.3,
-                      ease: "easeInOut"
+                      duration: isSpinning ? 0.08 : 0.3, // Very fast opacity changes
+                      ease: "linear"
                     },
                     scale: {
-                      duration: isSpinning ? 0.25 : 0.5,
-                      ease: "easeOut"
+                      duration: isSpinning ? 0.12 : 0.5,
+                      ease: isSpinning ? "linear" : "easeOut"
                     },
                     y: {
-                      duration: isSpinning ? 0.25 : 0.4,
-                      ease: isSpinning ? "easeInOut" : "backOut"
+                      duration: isSpinning ? 0.12 : 0.4,
+                      ease: isSpinning ? "linear" : "easeOut" // Linear for smooth fast movement
                     }
                   }}
-                  className={`py-2 px-3 sm:py-3 sm:px-5 lg:py-5 lg:px-7 mx-1 sm:mx-2 lg:mx-4 mb-1 sm:mb-2 lg:mb-4 rounded-lg sm:rounded-xl lg:rounded-2xl border sm:border-2 transition-all duration-300 backdrop-blur-sm ${
+                  style={{
+                    // Add hardware acceleration for iOS Safari
+                    WebkitTransform: 'translate3d(0, 0, 0)',
+                    transform: 'translate3d(0, 0, 0)',
+                    WebkitBackfaceVisibility: 'hidden',
+                    backfaceVisibility: 'hidden'
+                  }}
+                  className={`py-2 px-3 sm:py-3 sm:px-5 lg:py-5 lg:px-7 mx-1 sm:mx-2 lg:mx-4 mb-1 sm:mb-2 lg:mb-4 rounded-lg sm:rounded-xl lg:rounded-2xl border sm:border-2 transition-all duration-300 ${
                     isWinnerItem
-                      ? 'bg-gradient-to-r from-green-100 via-green-50 to-green-100 border-green-500 shadow-lg sm:shadow-xl lg:shadow-2xl ring-2 sm:ring-4 ring-green-300/50 transform scale-102 sm:scale-105'
+                      ? 'bg-gradient-to-r from-green-100 via-green-50 to-green-100 border-green-500 shadow-lg sm:shadow-xl lg:shadow-2xl ring-2 sm:ring-4 ring-green-300/50'
                       : isCenterItem
-                        ? 'bg-gradient-to-r from-green-50/90 via-white to-green-50/90 border-green-400 shadow-md sm:shadow-lg lg:shadow-xl ring-1 sm:ring-2 ring-green-200 transform scale-101 sm:scale-102'
+                        ? 'bg-gradient-to-r from-green-50/90 via-white to-green-50/90 border-green-400 shadow-md sm:shadow-lg lg:shadow-xl ring-1 sm:ring-2 ring-green-200'
                         : 'bg-white/80 border-gray-300 shadow-sm sm:shadow-md lg:shadow-lg hover:shadow-md sm:hover:shadow-lg lg:hover:shadow-xl hover:bg-white/95 hover:border-green-200'
                   }`}
                 >
@@ -241,25 +300,41 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
                             duration: 2,
                             ease: "easeInOut"
                           }}
+                          style={{
+                            WebkitTransform: 'translate3d(0, 0, 0)',
+                            transform: 'translate3d(0, 0, 0)'
+                          }}
                         >
                           <motion.span
                             className="text-2xl"
                             animate={{ rotate: [0, 10, -10, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5 }}
+                            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                            style={{
+                              WebkitTransform: 'translate3d(0, 0, 0)',
+                              transform: 'translate3d(0, 0, 0)'
+                            }}
                           >
                             🎉
                           </motion.span>
                           <motion.span
                             className="text-2xl"
                             animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ repeat: Infinity, duration: 1 }}
+                            transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
+                            style={{
+                              WebkitTransform: 'translate3d(0, 0, 0)',
+                              transform: 'translate3d(0, 0, 0)'
+                            }}
                           >
                             👑
                           </motion.span>
                           <motion.span
                             className="text-2xl"
                             animate={{ rotate: [0, -10, 10, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5 }}
+                            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                            style={{
+                              WebkitTransform: 'translate3d(0, 0, 0)',
+                              transform: 'translate3d(0, 0, 0)'
+                            }}
                           >
                             🎉
                           </motion.span>
@@ -314,6 +389,13 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
                 className="w-7 h-7 border-4 border-green-600/20 border-t-green-600 border-r-green-500 rounded-full shadow-sm"
+                style={{
+                  // Ensure hardware acceleration for smooth rotation on iOS Safari
+                  WebkitTransform: 'translate3d(0, 0, 0)',
+                  transform: 'translate3d(0, 0, 0)',
+                  WebkitTransformStyle: 'preserve-3d',
+                  transformStyle: 'preserve-3d'
+                }}
               />
               <motion.span
                 className="text-green-700 font-bold text-lg"
@@ -328,7 +410,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
               animate={{ opacity: [0.6, 1, 0.6] }}
               transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
             >
-              يرجى الانتظار حتى توقف القائمة
+              السحب يستغرق عدة ثوانٍ للحصول على أفضل النتائج
             </motion.p>
           </motion.div>
         ) : winner && isComplete ? (

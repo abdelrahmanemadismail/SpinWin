@@ -78,10 +78,6 @@ export default function Controls({
               <span className="font-bold text-green-700">{participantCount}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">الحد الأدنى للسحب:</span>
-              <span className="font-mono text-gray-800">2</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-600">حالة السحب:</span>
               <span className={`font-medium ${
                 isDrawing

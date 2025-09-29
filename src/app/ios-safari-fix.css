@@ -1,0 +1,66 @@
+/* iOS Safari specific fixes for animations */
+
+/* Force hardware acceleration for all animated elements */
+.motion-div,
+[data-framer-component] {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+}
+
+/* Fix for iOS Safari animation stutter */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection for specific elements */
+input, textarea, p, span, div[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Fix for iOS Safari transform issues */
+@supports (-webkit-overflow-scrolling: touch) {
+  .motion-safe\:transform {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Smooth scrolling fix for iOS */
+html {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS Safari viewport issues */
+@supports (-webkit-appearance: none) and (stroke-color: transparent) {
+  .ios-height-fix {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Animation performance optimization for iOS */
+@media (prefers-reduced-motion: no-preference) {
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-opacity {
+    will-change: opacity;
+  }
+}
+
+/* Fix for iOS Safari gradient rendering */
+.bg-gradient-to-r,
+.bg-gradient-to-br,
+.bg-gradient-to-b,
+.bg-gradient-to-t {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
