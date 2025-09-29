@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import ParticipantList from '@/components/ParticipantList';
-import RotatingList from '@/components/RotatingList';
+import RotatingListWrapper from '@/components/RotatingListWrapper';
 import ResultModal from '@/components/ResultModal';
 import Controls from '@/components/Controls';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -235,7 +235,7 @@ export default function RafflePage() {
             className="lg:col-span-3 flex flex-col items-center space-y-2 sm:space-y-4 lg:space-y-6 min-h-[400px] sm:min-h-[500px] lg:min-h-[600px] order-1 lg:order-2"
           >
             <div className="w-full flex-1 min-h-0">
-              <RotatingList
+              <RotatingListWrapper
                 participants={participants}
                 isSpinning={isDrawing}
                 winner={winner}
@@ -327,7 +327,7 @@ export default function RafflePage() {
               🇸🇦 هذه الصفحة مخصصة لعرض السحب العشوائي بشكل احترافي وشفاف أمام الحضور
             </p>
             <p className="text-xs sm:text-xs lg:text-sm text-green-200 opacity-75">
-              تم التطوير باستخدام Next.js • جميع الحقوق محفوظة
+              تم التطوير بواسطه <a href="https://www.linkedin.com/in/abdelrahmanemadismail/" target="_blank" rel="noopener noreferrer">عبدالرحمن اسماعيل</a> • جميع الحقوق محفوظة
             </p>
           </div>
         </div>

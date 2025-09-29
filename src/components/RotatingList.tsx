@@ -15,6 +15,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visibleParticipants, setVisibleParticipants] = useState<Participant[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Use refs to avoid stale closures
   const participantsRef = useRef(participants);
@@ -46,15 +47,16 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     onSpinCompleteRef.current = onSpinComplete;
   }, [onSpinComplete]);
 
-  // Cleanup on unmount
+  // Client-side mounting check
   useEffect(() => {
+    setIsMounted(true);
     return () => {
       isMountedRef.current = false;
       if (spinningTimeoutRef.current) {
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
       }
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
@@ -90,7 +92,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
   });
 
   const spin = useCallback(() => {
-    if (!spinningDataRef.current.isActive) return;
+    if (!spinningDataRef.current.isActive || !isMounted || typeof window === 'undefined') return;
 
     const now = Date.now();
     const elapsedTime = now - spinningDataRef.current.startTime;
@@ -141,12 +143,15 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     }
 
     // Continue spinning
-    if (spinningDataRef.current.isActive) {
+    if (spinningDataRef.current.isActive && typeof requestAnimationFrame !== 'undefined') {
       animationFrameRef.current = requestAnimationFrame(spin);
     }
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
+    // Only run on client-side after mounting
+    if (!isMounted) return;
+    
     // If not spinning or insufficient participants, stop everything
     if (!isSpinning || participantsRef.current.length < 2) {
       spinningDataRef.current.isActive = false;
@@ -155,7 +160,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
       }
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
@@ -165,7 +170,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     // Only start spinning if not already active
     if (!spinningDataRef.current.isActive) {
       // Clear any existing animation frame
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
         cancelAnimationFrame(animationFrameRef.current);
       }
 
@@ -182,7 +187,9 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
       };
 
       // Start the spinning animation
-      animationFrameRef.current = requestAnimationFrame(spin);
+      if (typeof requestAnimationFrame !== 'undefined') {
+        animationFrameRef.current = requestAnimationFrame(spin);
+      }
     }
 
     // Cleanup
@@ -192,12 +199,12 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
         clearTimeout(spinningTimeoutRef.current);
         spinningTimeoutRef.current = null;
       }
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current && typeof cancelAnimationFrame !== 'undefined') {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
     };
-  }, [isSpinning, spin]);
+  }, [isSpinning, spin, isMounted]);
 
   if (participants.length === 0) {
     return (
