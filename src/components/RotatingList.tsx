@@ -71,7 +71,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     setVisibleParticipants(getVisibleParticipants(currentIndex));
   }, [currentIndex, participants, centerIndex, visibleCount]);
 
-  // Simple spinning logic using setTimeout
+  // Enhanced spinning logic with faster scrolling and multiple cycles
   useEffect(() => {
     if (!isMounted || !isSpinning || participants.length < 2) {
       setIsComplete(false);
@@ -79,18 +79,29 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
     }
 
     const startTime = Date.now();
-    let currentSpeed = 50; // Start fast
-    const minSpinTime = 8000; // 8 seconds
+    let currentSpeed = 20; // Start much faster
+    const minSpinTime = 10000; // 10 seconds for more cycles
+    const minCycles = 5; // Ensure at least 5 complete cycles through all participants
+    let totalRotations = 0;
     let intervalId: NodeJS.Timeout;
 
     const spinStep = () => {
       const elapsedTime = Date.now() - startTime;
 
-      // Update current index
-      setCurrentIndex(prev => (prev + 1) % participants.length);
+      // Update current index and track rotations
+      setCurrentIndex(prev => {
+        const newIndex = (prev + 1) % participants.length;
+        if (newIndex === 0) {
+          totalRotations++;
+        }
+        return newIndex;
+      });
 
-      // Check if we should stop
-      if (winner && elapsedTime >= minSpinTime) {
+      // Enhanced stopping condition: must complete minimum cycles AND minimum time
+      const hasMinimumCycles = totalRotations >= minCycles;
+      const hasMinimumTime = elapsedTime >= minSpinTime;
+
+      if (winner && hasMinimumCycles && hasMinimumTime) {
         const winnerIndex = participants.findIndex(p => p.id === winner.id);
         if (winnerIndex !== -1) {
           setCurrentIndex(winnerIndex);
@@ -100,10 +111,21 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
         }
       }
 
-      // Adjust speed for slowdown effect
-      if (winner && elapsedTime >= minSpinTime - 3000) {
-        const slowdownProgress = (elapsedTime - (minSpinTime - 3000)) / 3000;
-        currentSpeed = 50 + (500 * slowdownProgress); // Slow down gradually
+      // Progressive speed adjustment for dramatic effect
+      if (winner && hasMinimumCycles && elapsedTime >= minSpinTime - 4000) {
+        // Start slowing down in the last 4 seconds
+        const slowdownProgress = (elapsedTime - (minSpinTime - 4000)) / 4000;
+        const easeOutProgress = 1 - Math.pow(1 - slowdownProgress, 3); // Cubic ease-out
+        currentSpeed = 20 + (800 * easeOutProgress); // Slow down more dramatically
+      } else if (elapsedTime < 2000) {
+        // Super fast initial phase (first 2 seconds)
+        currentSpeed = 15;
+      } else if (elapsedTime < 4000) {
+        // Fast phase (2-4 seconds)
+        currentSpeed = 25;
+      } else {
+        // Normal phase until slowdown
+        currentSpeed = 35;
       }
 
       // Continue spinning
@@ -180,18 +202,18 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
                   }}
                   exit={{ opacity: 0.7, y: -100, scale: 0.9 }}
                   transition={{
-                    duration: isSpinning ? 0.12 : 0.5, // Much faster during spinning
+                    duration: isSpinning ? 0.08 : 0.5, // Even faster during spinning
                     ease: isSpinning ? "linear" : "easeOut", // Linear for consistent fast spinning
                     opacity: {
-                      duration: isSpinning ? 0.08 : 0.3, // Very fast opacity changes
+                      duration: isSpinning ? 0.05 : 0.3, // Ultra fast opacity changes
                       ease: "linear"
                     },
                     scale: {
-                      duration: isSpinning ? 0.12 : 0.5,
+                      duration: isSpinning ? 0.08 : 0.5,
                       ease: isSpinning ? "linear" : "easeOut"
                     },
                     y: {
-                      duration: isSpinning ? 0.12 : 0.4,
+                      duration: isSpinning ? 0.08 : 0.4,
                       ease: isSpinning ? "linear" : "easeOut" // Linear for smooth fast movement
                     }
                   }}
@@ -206,7 +228,7 @@ export default function RotatingList({ participants, isSpinning, winner, onSpinC
                     isWinnerItem
                       ? 'bg-gradient-to-r from-green-100 via-green-50 to-green-100 border-green-500 shadow-lg sm:shadow-xl lg:shadow-2xl ring-2 sm:ring-4 ring-green-300/50'
                       : isCenterItem
-                        ? 'bg-gradient-to-r from-green-50/90 via-white to-green-50/90 border-green-400 shadow-md sm:shadow-lg lg:shadow-xl ring-1 sm:ring-2 ring-green-200'
+                        ? 'bg-gradient-to-r from-green-50/90 via-white to-green-50/90 border-green-400 shadow-lg sm:shadow-xl lg:shadow-2xl ring-2 sm:ring-4 ring-green-300/70'
                         : 'bg-white/80 border-gray-300 shadow-sm sm:shadow-md lg:shadow-lg hover:shadow-md sm:hover:shadow-lg lg:hover:shadow-xl hover:bg-white/95 hover:border-green-200'
                   }`}
                 >
